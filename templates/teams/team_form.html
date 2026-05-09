@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+{# This template is reused for both Create and Edit — title variable changes #}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-semibold">{{ title }}</h6>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="row">
+                        <div class="col-8 mb-3">
+                            <label class="form-label fw-medium small">Team Name *</label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                            <div class="text-danger small">{{ form.name.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-4 mb-3">
+                            <label class="form-label fw-medium small">Status</label>
+                            {{ form.status }}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-medium small">Mission & Description *</label>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                        <div class="text-danger small">{{ form.description.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-medium small">Department</label>
+                            {{ form.department }}
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-medium small">Manager</label>
+                            {{ form.manager }}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-4 mb-3">
+                            <label class="form-label fw-medium small">Team Email</label>
+                            {{ form.email }}
+                        </div>
+                        <div class="col-4 mb-3">
+                            <label class="form-label fw-medium small">Slack Channel</label>
+                            {{ form.slack_channel }}
+                        </div>
+                        <div class="col-4 mb-3">
+                            <label class="form-label fw-medium small">Teams Channel</label>
+                            {{ form.teams_channel }}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-medium small">Skills</label>
+                            <div style="max-height:150px;overflow-y:auto;border:1px solid #dee2e6;border-radius:6px;padding:8px;">
+                                {{ form.skills }}
+                            </div>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-medium small">Upstream Dependencies</label>
+                            <div style="max-height:150px;overflow-y:auto;border:1px solid #dee2e6;border-radius:6px;padding:8px;">
+                                {{ form.upstream_dependencies }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg me-2"></i>Save Team
+                        </button>
+                        {% if team %}
+                        <a href="{% url 'team_detail' team.pk %}" class="btn btn-outline-secondary">Cancel</a>
+                        {% else %}
+                        <a href="{% url 'team_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                        {% endif %}
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

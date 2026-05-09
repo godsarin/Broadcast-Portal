@@ -1,0 +1,259 @@
+{% extends 'base.html' %}
+{% block title %}{{ team.name }} - Broadcast Portal{% endblock %}
+{% block page_title %}Team Detail{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h4 class="fw-bold mb-1">{{ team.name }}</h4>
+        <div class="d-flex gap-2 flex-wrap">
+            <span class="badge status-badge-{{ team.status }} rounded-pill">{{ team.get_status_display }}</span>
+            {% if team.department %}
+            <span class="badge bg-light text-dark rounded-pill">
+                <i class="bi bi-building me-1"></i>{{ team.department.name }}
+            </span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <!-- Email Team — integrates with Student 3 (Chris) messages_app -->
+        <a href="{% url 'email_team' team.pk %}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-envelope me-1"></i>Email Team
+        </a>
+        <!-- Schedule Meeting — integrates with Student 4 (Bishan) schedule app -->
+        <a href="{% url 'meeting_create' %}?team={{ team.pk }}" class="btn btn-outline-success btn-sm">
+            <i class="bi bi-calendar-plus me-1"></i>Schedule Meeting
+        </a>
+        {% if can_edit %}
+        <a href="{% url 'team_edit' team.pk %}" class="btn btn-primary btn-sm">
+            <i class="bi bi-pencil me-1"></i>Edit
+        </a>
+        {% endif %}
+        <a href="{% url 'team_list' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Back
+        </a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Left column: About, Members, Repositories -->
+    <div class="col-lg-8">
+
+        <!-- About / Mission -->
+        <div class="card mb-4">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-semibold"><i class="bi bi-info-circle me-2 text-primary"></i>About</h6>
+            </div>
+            <div class="card-body">
+                <p class="mb-0">{{ team.description|default:"No description provided." }}</p>
+            </div>
+        </div>
+
+        <!-- Team Members -->
+        <div class="card mb-4">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-semibold">
+                    <i class="bi bi-people me-2 text-primary"></i>Team Members ({{ members|length }})
+                </h6>
+                {% if can_edit %}
+                <a href="{% url 'team_add_member' team.pk %}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-person-plus me-1"></i>Add Member
+                </a>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                {% if members %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Name</th>
+                                <th>Username</th>
+                                <th>Role</th>
+                                {% if can_edit %}<th>Action</th>{% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for membership in members %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="avatar" style="width:30px;height:30px;font-size:0.75rem;">
+                                            {{ membership.user.first_name|slice:":1" }}{{ membership.user.last_name|slice:":1" }}
+                                        </div>
+                                        {{ membership.user.get_full_name|default:membership.user.username }}
+                                    </div>
+                                </td>
+                                <td class="text-muted small">{{ membership.user.username }}</td>
+                                <td>
+                                    <span class="badge bg-light text-dark">{{ membership.get_role_display }}</span>
+                                </td>
+                                {% if can_edit %}
+                                <td>
+                                    <form method="post"
+                                          action="{% url 'team_remove_member' team.pk membership.pk %}"
+                                          class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit"
+                                                class="btn btn-sm btn-outline-danger"
+                                                onclick="return confirm('Remove this member?')">
+                                            <i class="bi bi-person-dash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted small">No members yet</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Code Repositories -->
+        <div class="card mb-4">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-semibold">
+                    <i class="bi bi-code-square me-2 text-primary"></i>Code Repositories
+                </h6>
+                {% if can_edit %}
+                <a href="{% url 'team_add_repo' team.pk %}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-plus me-1"></i>Add Repo
+                </a>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                {% if repos %}
+                <div class="list-group list-group-flush">
+                    {% for repo in repos %}
+                    <div class="list-group-item px-4 py-3">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <i class="bi bi-git me-2 text-danger"></i>
+                                <a href="{{ repo.url }}" target="_blank" class="fw-medium text-decoration-none">
+                                    {{ repo.name }}
+                                </a>
+                                {% if repo.description %}
+                                <div class="text-muted small mt-1">{{ repo.description }}</div>
+                                {% endif %}
+                            </div>
+                            <span class="badge bg-secondary">{{ repo.get_platform_display }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted small">No repositories added</div>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Right sidebar: Contact, Dependencies, Skills, Danger Zone -->
+    <div class="col-lg-4">
+
+        <!-- Contact Info -->
+        <div class="card mb-4">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-semibold"><i class="bi bi-chat me-2 text-primary"></i>Contact</h6>
+            </div>
+            <div class="card-body">
+                {% if team.manager %}
+                <div class="mb-3">
+                    <div class="text-muted small mb-1">Manager</div>
+                    <div class="fw-medium">{{ team.manager.get_full_name|default:team.manager.username }}</div>
+                    <div class="text-muted small">{{ team.manager.email }}</div>
+                </div>
+                {% endif %}
+                {% if team.email %}
+                <div class="mb-3">
+                    <div class="text-muted small mb-1">Team Email</div>
+                    <a href="mailto:{{ team.email }}" class="text-decoration-none">{{ team.email }}</a>
+                </div>
+                {% endif %}
+                {% if team.slack_channel %}
+                <div class="mb-3">
+                    <div class="text-muted small mb-1">Slack</div>
+                    <span class="badge bg-success-subtle text-success rounded-pill">{{ team.slack_channel }}</span>
+                </div>
+                {% endif %}
+                {% if team.teams_channel %}
+                <div class="mb-3">
+                    <div class="text-muted small mb-1">Teams Channel</div>
+                    <div class="small">{{ team.teams_channel }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Dependencies (Upstream / Downstream) -->
+        <div class="card mb-4">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-semibold">
+                    <i class="bi bi-diagram-2 me-2 text-primary"></i>Dependencies
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if upstream %}
+                <div class="mb-3">
+                    <div class="text-muted small fw-medium mb-2">⬆ Upstream (depends on)</div>
+                    {% for t in upstream %}
+                    <a href="{% url 'team_detail' t.pk %}"
+                       class="badge bg-primary-subtle text-primary text-decoration-none me-1 mb-1">
+                        {{ t.name }}
+                    </a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% if downstream %}
+                <div>
+                    <div class="text-muted small fw-medium mb-2">⬇ Downstream (depended by)</div>
+                    {% for t in downstream %}
+                    <a href="{% url 'team_detail' t.pk %}"
+                       class="badge bg-success-subtle text-success text-decoration-none me-1 mb-1">
+                        {{ t.name }}
+                    </a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% if not upstream and not downstream %}
+                <div class="text-muted small">No dependencies configured</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Skills -->
+        {% if team.skills.all %}
+        <div class="card mb-4">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-semibold">
+                    <i class="bi bi-tools me-2 text-primary"></i>Skills
+                </h6>
+            </div>
+            <div class="card-body">
+                {% for skill in team.skills.all %}
+                <span class="badge bg-light text-dark border me-1 mb-1">{{ skill.name }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Danger Zone — only shown if can_edit -->
+        {% if can_edit %}
+        <div class="card mt-4 border-danger">
+            <div class="card-body">
+                <h6 class="text-danger fw-semibold mb-2">Danger Zone</h6>
+                <a href="{% url 'team_delete' team.pk %}" class="btn btn-outline-danger btn-sm w-100">
+                    <i class="bi bi-trash me-2"></i>Disband Team
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

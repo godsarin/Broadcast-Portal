@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}Email Team{% endblock %}
+{% block page_title %}Email Team{% endblock %}
+
+{% block content %}
+{# Sends an internal message to the team manager via messages_app (Student 3 - Chris) #}
+<div class="row justify-content-center">
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-semibold">
+                    <i class="bi bi-envelope me-2"></i>Contact {{ team.name }}
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info small">
+                    <i class="bi bi-info-circle me-2"></i>
+                    This will send an internal message to the team manager
+                    {% if team.manager %}
+                    <strong>{{ team.manager.get_full_name }}</strong>
+                    {% endif %}.
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label fw-medium small">Subject</label>
+                        <input type="text" name="subject" class="form-control"
+                               placeholder="Subject" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-medium small">Message</label>
+                        <textarea name="message" class="form-control" rows="6"
+                                  placeholder="Your message..." required></textarea>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-send me-2"></i>Send Message
+                        </button>
+                        <a href="{% url 'team_detail' team.pk %}" class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

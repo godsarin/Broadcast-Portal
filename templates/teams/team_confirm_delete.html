@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}Disband Team{% endblock %}
+{% block page_title %}Disband Team{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card border-danger">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-exclamation-triangle text-danger" style="font-size:3rem;"></i>
+                <h5 class="mt-3 fw-bold">Disband "{{ team.name }}"?</h5>
+                <p class="text-muted">
+                    This will mark the team as <strong>disbanded</strong>.
+                    The team record and history will be preserved — nothing is permanently deleted.
+                </p>
+                <div class="d-flex gap-2 justify-content-center mt-4">
+                    <form method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash me-2"></i>Yes, Disband
+                        </button>
+                    </form>
+                    <a href="{% url 'team_detail' team.pk %}" class="btn btn-outline-secondary">
+                        Cancel
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
