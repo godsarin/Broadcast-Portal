@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block title %}{{ msg.subject }}{% endblock %}
+{% block page_title %}Messages{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-lg-3">
+        <div class="card">
+            <div class="card-body">
+                <a href="{% url 'compose' %}" class="btn btn-primary w-100 mb-3"><i class="bi bi-pencil-square me-2"></i>New Message</a>
+                <div class="list-group list-group-flush">
+                    <a href="{% url 'inbox' %}" class="list-group-item list-group-item-action"><i class="bi bi-inbox me-2"></i>Inbox</a>
+                    <a href="{% url 'sent_messages' %}" class="list-group-item list-group-item-action"><i class="bi bi-send me-2"></i>Sent</a>
+                    <a href="{% url 'drafts' %}" class="list-group-item list-group-item-action"><i class="bi bi-file-text me-2"></i>Drafts</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-9">
+        <div class="card">
+            <div class="card-header bg-white py-3">
+                <div class="d-flex justify-content-between align-items-start">
+                    <h5 class="mb-0">{{ msg.subject }}</h5>
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'reply' msg.pk %}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-reply me-1"></i>Reply
+                        </a>
+                        <a href="{% url 'delete_message' msg.pk %}" class="btn btn-sm btn-outline-danger">
+                            <i class="bi bi-trash"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="d-flex gap-3 mb-4">
+                    <div class="avatar">{{ msg.sender.first_name|slice:":1" }}{{ msg.sender.last_name|slice:":1" }}</div>
+                    <div>
+                        <div class="fw-semibold">{{ msg.sender.get_full_name|default:msg.sender.username }}</div>
+                        <div class="text-muted small">
+                            to {{ msg.recipient.get_full_name|default:msg.recipient.username }} &bull; {{ msg.created_at|date:"D, d M Y H:i" }}
+                        </div>
+                    </div>
+                </div>
+                <div class="border-top pt-4" style="white-space:pre-wrap;line-height:1.7;">{{ msg.body }}</div>
+            </div>
+        </div>
+
+        {% if msg.replies.all %}
+        <div class="mt-3">
+            {% for reply in msg.replies.all %}
+            <div class="card mt-2">
+                <div class="card-body">
+                    <div class="d-flex gap-2 mb-2">
+                        <div class="avatar" style="width:30px;height:30px;font-size:0.7rem;">{{ reply.sender.first_name|slice:":1" }}{{ reply.sender.last_name|slice:":1" }}</div>
+                        <div>
+                            <div class="fw-medium small">{{ reply.sender.get_full_name|default:reply.sender.username }}</div>
+                            <div class="text-muted" style="font-size:0.75rem;">{{ reply.created_at|timesince }} ago</div>
+                        </div>
+                    </div>
+                    <div style="white-space:pre-wrap;" class="small">{{ reply.body }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

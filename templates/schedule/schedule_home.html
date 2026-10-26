@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+{% block title %}Schedule - Broadcast Portal{% endblock %}
+{% block page_title %}Schedule{% endblock %}
+
+{% block extra_css %}
+<style>
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-day { min-height: 80px; border: 1px solid #dee2e6; border-radius: 4px; padding: 4px; background: #fff; }
+.cal-day.other-month { background: #f8f9fa; }
+.cal-day.today { border-color: #8E32E9; background: #f3e8fd; }
+.cal-event { font-size: 0.7rem; background: #8E32E9; color: white; border-radius: 3px; padding: 1px 4px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.cal-header-day { text-align: center; font-size: 0.75rem; font-weight: 600; color: #6c757d; padding: 4px; }
+.cal-day-num { font-size: 0.8rem; font-weight: 600; color: #333; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold mb-0">Schedule</h4>
+    <a href="{% url 'meeting_create' %}" class="btn btn-primary">
+        <i class="bi bi-calendar-plus me-2"></i>New Meeting
+    </a>
+</div>
+
+<div class="row g-4">
+    <!-- Calendar -->
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-semibold"><i class="bi bi-calendar3 me-2 text-primary"></i>
+                    {{ now|date:"F Y" }} Calendar</h6>
+            </div>
+            <div class="card-body">
+                <div id="mini-calendar"></div>
+            </div>
+        </div>
+
+        <!-- This Month View -->
+        <div class="card">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-semibold"><i class="bi bi-calendar-month me-2 text-success"></i>This Month</h6>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for meeting in weekly %}
+                <a href="{% url 'meeting_detail' meeting.pk %}" class="list-group-item list-group-item-action px-4 py-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="fw-medium">{{ meeting.title }}</div>
+                            <div class="text-muted small">
+                                <i class="bi bi-clock me-1"></i>{{ meeting.date_time|date:"D d M, H:i" }}
+                                ({{ meeting.duration_minutes }} min)
+                            </div>
+                            <div class="text-muted small">
+                                <i class="bi bi-camera-video me-1"></i>{{ meeting.get_platform_display }}
+                                {% if meeting.team %} &bull; {{ meeting.team.name }}{% endif %}
+                            </div>
+                        </div>
+                        <span class="badge bg-success-subtle text-success rounded-pill">
+                            {{ meeting.get_status_display }}
+                        </span>
+                    </div>
+                </a>
+                {% empty %}
+                <div class="list-group-item text-center text-muted py-4">No meetings this month</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Upcoming -->
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-semibold"><i class="bi bi-clock me-2 text-warning"></i>Upcoming</h6>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for meeting in upcoming %}
+                <a href="{% url 'meeting_detail' meeting.pk %}" class="list-group-item list-group-item-action px-3 py-3">
+                    <div class="fw-medium small">{{ meeting.title }}</div>
+                    <div class="text-muted" style="font-size:0.78rem;">
+                        <i class="bi bi-calendar me-1"></i>{{ meeting.date_time|date:"D d M" }}
+                        <i class="bi bi-clock ms-2 me-1"></i>{{ meeting.date_time|date:"H:i" }}
+                    </div>
+                    <div class="text-muted" style="font-size:0.78rem;">
+                        <i class="bi bi-people me-1"></i>{{ meeting.attendee_count }} attendees
+                    </div>
+                </a>
+                {% empty %}
+                <div class="list-group-item text-center text-muted py-4 small">
+                    No upcoming meetings
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-semibold">Quick Schedule</h6>
+            </div>
+            <div class="card-body">
+                <a href="{% url 'meeting_create' %}" class="btn btn-outline-primary w-100 mb-2">
+                    <i class="bi bi-camera-video me-2"></i>Video Call
+                </a>
+                <a href="{% url 'my_meetings' %}" class="btn btn-outline-secondary w-100">
+                    <i class="bi bi-list me-2"></i>All My Meetings
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Build a simple calendar for current month
+const calEvents = {{ calendar_events_json|safe }};
+const now = new Date();
+const year = now.getFullYear();
+const month = now.getMonth();
+const today = now.getDate();
+
+const firstDay = new Date(year, month, 1).getDay();
+const daysInMonth = new Date(year, month + 1, 0).getDate();
+const prevDays = new Date(year, month, 0).getDate();
+
+const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+let html = '<div class="calendar-grid">';
+dayNames.forEach(d => { html += `<div class="cal-header-day">${d}</div>`; });
+
+// Previous month days
+for (let i = 0; i < firstDay; i++) {
+    html += `<div class="cal-day other-month"><span class="cal-day-num text-muted">${prevDays - firstDay + 1 + i}</span></div>`;
+}
+
+// Current month
+for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const dayEvents = calEvents.filter(e => e.start.startsWith(dateStr));
+    const isToday = day === today;
+    html += `<div class="cal-day ${isToday ? 'today' : ''}">
+        <span class="cal-day-num ${isToday ? 'text-primary' : ''}">${day}</span>
+        ${dayEvents.slice(0,2).map(e => `<a href="/schedule/meetings/${e.id}/" class="cal-event d-block text-decoration-none" style="background:${e.color}">${e.title}</a>`).join('')}
+        ${dayEvents.length > 2 ? `<div style="font-size:0.65rem;color:#888;">+${dayEvents.length - 2} more</div>` : ''}
+    </div>`;
+}
+
+// Fill remaining cells
+const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+for (let i = daysInMonth + firstDay; i < totalCells; i++) {
+    html += `<div class="cal-day other-month"><span class="cal-day-num text-muted">${i - daysInMonth - firstDay + 1}</span></div>`;
+}
+html += '</div>';
+
+document.getElementById('mini-calendar').innerHTML = html;
+</script>
+{% endblock %}

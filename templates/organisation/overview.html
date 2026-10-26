@@ -1,0 +1,519 @@
+{% extends 'base.html' %}
+{% block title %}Organisation - Broadcast Portal{% endblock %}
+{% block page_title %}Organisation Structure{% endblock %}
+
+{% block extra_css %}
+<style>
+    .map-wrapper {
+        background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+        border-radius: 16px;
+        padding: 20px;
+        position: relative;
+        overflow: hidden;
+        min-height: 420px;
+    }
+
+    .map-wrapper::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+        background-size: 30px 30px;
+        pointer-events: none;
+    }
+
+    #org-svg {
+        width: 100%;
+        overflow: visible;
+        display: block;
+    }
+
+    .org-node {
+        cursor: pointer;
+        opacity: 0;
+    }
+
+    .org-node.visible {
+        animation: popIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    @keyframes popIn {
+        from { opacity: 0; transform: scale(0.3) translateY(-20px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .org-line {
+        opacity: 0;
+        stroke-dasharray: 200;
+        stroke-dashoffset: 200;
+    }
+
+    .org-line.animated {
+        animation: drawLine 0.6s ease forwards;
+    }
+
+    @keyframes drawLine {
+        from { opacity: 0; stroke-dashoffset: 200; }
+        to { opacity: 0.6; stroke-dashoffset: 0; }
+    }
+
+    .pulse-ring {
+        animation: pulse 2.5s infinite ease-in-out;
+        transform-origin: center;
+    }
+
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 0.5; }
+        50% { transform: scale(1.1); opacity: 0.2; }
+    }
+
+    #org-tooltip {
+        position: fixed;
+        background: rgba(15,12,41,0.96);
+        color: white;
+        padding: 10px 16px;
+        border-radius: 10px;
+        font-size: 0.8rem;
+        pointer-events: none;
+        z-index: 9999;
+        display: none;
+        border: 1px solid rgba(255,255,255,0.1);
+        box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+        max-width: 220px;
+    }
+
+    .dept-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: none;
+        border-radius: 14px;
+        overflow: hidden;
+    }
+
+    .dept-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
+    }
+
+    .dept-card .card-header-band {
+        height: 6px;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+    }
+
+    .dept-card:nth-child(2) .card-header-band {
+        background: linear-gradient(90deg, #11998e, #38ef7d);
+    }
+
+    .dept-card:nth-child(3) .card-header-band {
+        background: linear-gradient(90deg, #f093fb, #f5576c);
+    }
+
+    .dept-card:nth-child(4) .card-header-band {
+        background: linear-gradient(90deg, #4facfe, #00f2fe);
+    }
+
+    .team-tag {
+        display: inline-block;
+        background: #f0f4ff;
+        color: #3b5bdb;
+        border-radius: 20px;
+        padding: 2px 10px;
+        font-size: 0.72rem;
+        font-weight: 500;
+        margin: 2px;
+        text-decoration: none;
+        transition: background 0.2s;
+    }
+
+    .team-tag:hover {
+        background: #dde4ff;
+        color: #3b5bdb;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-1">Organisation Overview</h4>
+        <p class="text-muted small mb-0">Broadcast Engineering Department structure and relationships</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'dependency_map' %}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-diagram-2 me-1"></i>Dependency Map
+        </a>
+        {% if user.is_staff %}
+        <a href="{% url 'department_create' %}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus me-1"></i>Add Department
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card mb-4 shadow-sm">
+    <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold">
+            <i class="bi bi-diagram-3 me-2 text-primary"></i>Organisational Chart
+        </h6>
+    </div>
+    <div class="card-body p-3">
+        <div class="map-wrapper">
+            <svg id="org-svg"></svg>
+        </div>
+    </div>
+</div>
+
+<div id="org-tooltip"></div>
+
+<div class="row g-3">
+    {% for dept in departments %}
+    <div class="col-md-6 col-xl-4">
+        <div class="card dept-card h-100 shadow-sm">
+            <div class="card-header-band"></div>
+            <div class="card-body pt-3">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h6 class="fw-bold mb-0">{{ dept.name }}</h6>
+                    <span class="badge bg-primary-subtle text-primary rounded-pill">
+                        {{ dept.team_count }} teams
+                    </span>
+                </div>
+                {% if dept.description %}
+                <p class="text-muted small mb-3">{{ dept.description|truncatechars:80 }}</p>
+                {% endif %}
+                {% if dept.specialisation %}
+                <div class="mb-2 small">
+                    <i class="bi bi-award me-1 text-warning"></i>
+                    <span class="text-muted">{{ dept.specialisation }}</span>
+                </div>
+                {% endif %}
+                {% if dept.leader %}
+                <div class="mb-3 small d-flex align-items-center gap-2">
+                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold"
+                         style="width:26px;height:26px;font-size:0.7rem;min-width:26px;">
+                        {{ dept.leader.first_name|slice:":1" }}{{ dept.leader.last_name|slice:":1" }}
+                    </div>
+                    <span class="text-muted">{{ dept.leader.get_full_name|default:dept.leader.username }}</span>
+                </div>
+                {% endif %}
+                <div class="mb-3">
+                    {% for team in dept.teams.all %}
+                    {% if team.status == 'active' %}
+                    <a href="{% url 'team_detail' team.pk %}" class="team-tag">{{ team.name }}</a>
+                    {% endif %}
+                    {% endfor %}
+                    {% with active_count=dept.team_count %}
+                    {% if active_count > 4 %}
+                    <span class="text-muted small ms-1">+{{ active_count|add:"-4" }} more</span>
+                    {% endif %}
+                    {% endwith %}
+                </div>
+                <a href="{% url 'department_detail' dept.pk %}" class="btn btn-sm btn-outline-primary w-100">
+                    <i class="bi bi-arrow-right me-1"></i>View Department
+                </a>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12 text-center py-5 text-muted">
+        <i class="bi bi-building" style="font-size:3rem;"></i>
+        <h5 class="mt-3">No departments yet</h5>
+        {% if user.is_staff %}
+        <a href="{% url 'department_create' %}" class="btn btn-primary mt-2">Create First Department</a>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const depts = {{ org_data|safe }};
+const svg = document.getElementById('org-svg');
+const tooltip = document.getElementById('org-tooltip');
+
+if (depts.length === 0) {
+    svg.parentElement.innerHTML = '<div class="text-center text-white py-5"><i class="bi bi-building" style="font-size:3rem;opacity:0.3;"></i><p class="mt-3 opacity-50">No departments to display</p></div>';
+} else {
+    const nodeW = 180;
+    const nodeH = 70;
+    const rootW = 220;
+    const rootH = 60;
+    const paddingY = 100;
+
+    const svgW = Math.max(700, depts.length * (nodeW + 50) + 100);
+    const svgH = 340;
+
+    svg.setAttribute('viewBox', `0 0 ${svgW} ${svgH}`);
+    svg.style.minHeight = `${svgH}px`;
+
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    defs.innerHTML = `
+        <linearGradient id="rootGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#667eea;stop-opacity:1"/>
+            <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1"/>
+        </linearGradient>
+        <linearGradient id="deptGrad0" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#2b6cb0;stop-opacity:1"/>
+            <stop offset="100%" style="stop-color:#1a365d;stop-opacity:1"/>
+        </linearGradient>
+        <linearGradient id="deptGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#276749;stop-opacity:1"/>
+            <stop offset="100%" style="stop-color:#1c4532;stop-opacity:1"/>
+        </linearGradient>
+        <linearGradient id="deptGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#744210;stop-opacity:1"/>
+            <stop offset="100%" style="stop-color:#7b341e;stop-opacity:1"/>
+        </linearGradient>
+        <linearGradient id="deptGrad3" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#553c9a;stop-opacity:1"/>
+            <stop offset="100%" style="stop-color:#322659;stop-opacity:1"/>
+        </linearGradient>
+        <filter id="glow">
+            <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+            <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+        </filter>
+        <marker id="arrowWhite" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="rgba(255,255,255,0.4)"/>
+        </marker>
+    `;
+    svg.appendChild(defs);
+
+    const rootX = (svgW - rootW) / 2;
+    const rootY = 30;
+    const rootCX = rootX + rootW / 2;
+    const rootCY = rootY + rootH / 2;
+    const deptSpacing = svgW / (depts.length + 1);
+    const deptY = rootY + rootH + paddingY;
+    const midY = rootY + rootH + paddingY / 2;
+
+    // ── Draw connector lines FIRST (behind everything) ──────────────────
+    const connectorGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    connectorGroup.setAttribute('class', 'org-line');
+
+    // Vertical line from root down to midY
+    const vLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    vLine.setAttribute('x1', rootCX);
+    vLine.setAttribute('y1', rootY + rootH);
+    vLine.setAttribute('x2', rootCX);
+    vLine.setAttribute('y2', midY);
+    vLine.setAttribute('stroke', 'rgba(255,255,255,0.25)');
+    vLine.setAttribute('stroke-width', '1.5');
+    vLine.setAttribute('stroke-dasharray', '5 3');
+    connectorGroup.appendChild(vLine);
+
+    // Horizontal line spanning from first dept to last dept at midY
+    const firstDeptCX = deptSpacing * 1;
+    const lastDeptCX = deptSpacing * depts.length;
+    const hLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    hLine.setAttribute('x1', firstDeptCX);
+    hLine.setAttribute('y1', midY);
+    hLine.setAttribute('x2', lastDeptCX);
+    hLine.setAttribute('y2', midY);
+    hLine.setAttribute('stroke', 'rgba(255,255,255,0.25)');
+    hLine.setAttribute('stroke-width', '1.5');
+    hLine.setAttribute('stroke-dasharray', '5 3');
+    connectorGroup.appendChild(hLine);
+
+    // Vertical drop lines from midY down to each dept with arrow
+    depts.forEach((dept, i) => {
+        const deptCX = deptSpacing * (i + 1);
+        const dropLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        dropLine.setAttribute('x1', deptCX);
+        dropLine.setAttribute('y1', midY);
+        dropLine.setAttribute('x2', deptCX);
+        dropLine.setAttribute('y2', deptY);
+        dropLine.setAttribute('stroke', 'rgba(255,255,255,0.25)');
+        dropLine.setAttribute('stroke-width', '1.5');
+        dropLine.setAttribute('stroke-dasharray', '5 3');
+        dropLine.setAttribute('marker-end', 'url(#arrowWhite)');
+        connectorGroup.appendChild(dropLine);
+    });
+
+    svg.appendChild(connectorGroup);
+
+    // ── Draw root node ───────────────────────────────────────────────────
+    const rootGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    rootGroup.setAttribute('class', 'org-node');
+    rootGroup.style.transformOrigin = `${rootCX}px ${rootCY}px`;
+
+    const rootPulse = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rootPulse.setAttribute('x', rootX - 6);
+    rootPulse.setAttribute('y', rootY - 6);
+    rootPulse.setAttribute('width', rootW + 12);
+    rootPulse.setAttribute('height', rootH + 12);
+    rootPulse.setAttribute('rx', 18);
+    rootPulse.setAttribute('fill', 'none');
+    rootPulse.setAttribute('stroke', '#a78bfa');
+    rootPulse.setAttribute('stroke-width', '2');
+    rootPulse.setAttribute('class', 'pulse-ring');
+    rootGroup.appendChild(rootPulse);
+
+    const rootRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rootRect.setAttribute('x', rootX);
+    rootRect.setAttribute('y', rootY);
+    rootRect.setAttribute('width', rootW);
+    rootRect.setAttribute('height', rootH);
+    rootRect.setAttribute('rx', 14);
+    rootRect.setAttribute('fill', 'url(#rootGrad)');
+    rootRect.setAttribute('stroke', '#a78bfa');
+    rootRect.setAttribute('stroke-width', '1.5');
+    rootGroup.appendChild(rootRect);
+
+    const iconCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    iconCircle.setAttribute('cx', rootX + 28);
+    iconCircle.setAttribute('cy', rootCY);
+    iconCircle.setAttribute('r', 16);
+    iconCircle.setAttribute('fill', 'rgba(255,255,255,0.15)');
+    rootGroup.appendChild(iconCircle);
+
+    const rootIcon = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    rootIcon.setAttribute('x', rootX + 28);
+    rootIcon.setAttribute('y', rootCY + 5);
+    rootIcon.setAttribute('text-anchor', 'middle');
+    rootIcon.setAttribute('font-size', '16');
+    rootIcon.setAttribute('fill', 'white');
+    rootIcon.textContent = '📡';
+    rootGroup.appendChild(rootIcon);
+
+    const rootText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    rootText.setAttribute('x', rootX + 55);
+    rootText.setAttribute('y', rootCY - 6);
+    rootText.setAttribute('font-family', 'Segoe UI, sans-serif');
+    rootText.setAttribute('font-weight', '700');
+    rootText.setAttribute('font-size', '13');
+    rootText.setAttribute('fill', 'white');
+    rootText.textContent = 'Broadcast Engineering';
+    rootGroup.appendChild(rootText);
+
+    const rootSub = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    rootSub.setAttribute('x', rootX + 55);
+    rootSub.setAttribute('y', rootCY + 12);
+    rootSub.setAttribute('font-family', 'Segoe UI, sans-serif');
+    rootSub.setAttribute('font-size', '10');
+    rootSub.setAttribute('fill', 'rgba(255,255,255,0.6)');
+    rootSub.textContent = `${depts.length} departments`;
+    rootGroup.appendChild(rootSub);
+
+    svg.appendChild(rootGroup);
+
+    // ── Draw department nodes ────────────────────────────────────────────
+    const borderColors = ['#63b3ed', '#68d391', '#f6ad55', '#b794f4'];
+    const gradIds = ['deptGrad0', 'deptGrad1', 'deptGrad2', 'deptGrad3'];
+
+    depts.forEach((dept, i) => {
+        const deptCX = deptSpacing * (i + 1);
+        const deptX = deptCX - nodeW / 2;
+        const deptCY = deptY + nodeH / 2;
+        const borderColor = borderColors[i % borderColors.length];
+        const gradId = gradIds[i % gradIds.length];
+        const deptId = dept.id.replace('dept_', '');
+
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('class', 'org-node');
+        g.setAttribute('data-id', deptId);
+        g.style.transformOrigin = `${deptCX}px ${deptCY}px`;
+        g.style.cursor = 'pointer';
+
+        const pulse = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        pulse.setAttribute('x', deptX - 5);
+        pulse.setAttribute('y', deptY - 5);
+        pulse.setAttribute('width', nodeW + 10);
+        pulse.setAttribute('height', nodeH + 10);
+        pulse.setAttribute('rx', 16);
+        pulse.setAttribute('fill', 'none');
+        pulse.setAttribute('stroke', borderColor);
+        pulse.setAttribute('stroke-width', '1.5');
+        pulse.setAttribute('class', 'pulse-ring');
+        g.appendChild(pulse);
+
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', deptX);
+        rect.setAttribute('y', deptY);
+        rect.setAttribute('width', nodeW);
+        rect.setAttribute('height', nodeH);
+        rect.setAttribute('rx', 12);
+        rect.setAttribute('fill', `url(#${gradId})`);
+        rect.setAttribute('stroke', borderColor);
+        rect.setAttribute('stroke-width', '1.5');
+        g.appendChild(rect);
+
+        const name = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        name.setAttribute('x', deptCX);
+        name.setAttribute('y', deptY + 26);
+        name.setAttribute('text-anchor', 'middle');
+        name.setAttribute('font-family', 'Segoe UI, sans-serif');
+        name.setAttribute('font-weight', '700');
+        name.setAttribute('font-size', '12');
+        name.setAttribute('fill', 'white');
+        const shortName = dept.name.length > 20 ? dept.name.substring(0, 20) + '…' : dept.name;
+        name.textContent = shortName;
+        g.appendChild(name);
+
+        const badge = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        badge.setAttribute('x', deptCX - 30);
+        badge.setAttribute('y', deptY + 34);
+        badge.setAttribute('width', 60);
+        badge.setAttribute('height', 20);
+        badge.setAttribute('rx', 10);
+        badge.setAttribute('fill', 'rgba(255,255,255,0.15)');
+        g.appendChild(badge);
+
+        const teamCount = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        teamCount.setAttribute('x', deptCX);
+        teamCount.setAttribute('y', deptY + 48);
+        teamCount.setAttribute('text-anchor', 'middle');
+        teamCount.setAttribute('font-family', 'Segoe UI, sans-serif');
+        teamCount.setAttribute('font-size', '10');
+        teamCount.setAttribute('fill', 'rgba(255,255,255,0.8)');
+        teamCount.textContent = `${dept.team_count} teams · ${dept.leader !== 'N/A' ? dept.leader.split(' ')[0] : 'No leader'}`;
+        g.appendChild(teamCount);
+
+        g.addEventListener('click', () => {
+            window.location.href = `/organisation/departments/${deptId}/`;
+        });
+
+        g.addEventListener('mouseenter', (e) => {
+            tooltip.style.display = 'block';
+            tooltip.innerHTML = `
+                <strong style="font-size:0.85rem;">${dept.name}</strong><br>
+                <span style="opacity:0.7;font-size:0.75rem;">👥 ${dept.team_count} active teams</span><br>
+                <span style="opacity:0.7;font-size:0.75rem;">👤 Leader: ${dept.leader}</span><br>
+                <span style="opacity:0.4;font-size:0.68rem;">Click to view department</span>
+            `;
+        });
+        g.addEventListener('mousemove', (e) => {
+            tooltip.style.left = (e.clientX + 14) + 'px';
+            tooltip.style.top = (e.clientY - 10) + 'px';
+        });
+        g.addEventListener('mouseleave', () => {
+            tooltip.style.display = 'none';
+        });
+
+        svg.appendChild(g);
+    });
+
+    // ── Animations ───────────────────────────────────────────────────────
+    setTimeout(() => {
+        rootGroup.classList.add('visible');
+    }, 100);
+
+    const lines = svg.querySelectorAll('.org-line');
+    setTimeout(() => {
+        lines.forEach((l, i) => {
+            setTimeout(() => l.classList.add('animated'), i * 100);
+        });
+    }, 400);
+
+    const deptNodes = svg.querySelectorAll('.org-node:not(:first-child)');
+    setTimeout(() => {
+        deptNodes.forEach((n, i) => {
+            setTimeout(() => n.classList.add('visible'), i * 150);
+        });
+    }, 600);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block title %}Compose Message{% endblock %}
+{% block page_title %}Messages{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-lg-3">
+        <div class="card">
+            <div class="card-body">
+                <a href="{% url 'compose' %}" class="btn btn-primary w-100 mb-3"><i class="bi bi-pencil-square me-2"></i>New Message</a>
+                <div class="list-group list-group-flush">
+                    <a href="{% url 'inbox' %}" class="list-group-item list-group-item-action"><i class="bi bi-inbox me-2"></i>Inbox</a>
+                    <a href="{% url 'sent_messages' %}" class="list-group-item list-group-item-action"><i class="bi bi-send me-2"></i>Sent</a>
+                    <a href="{% url 'drafts' %}" class="list-group-item list-group-item-action"><i class="bi bi-file-text me-2"></i>Drafts</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-9">
+        <div class="card">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-semibold">
+                    <i class="bi bi-pencil-square me-2"></i>
+                    {% if parent_msg %}Reply{% else %}New Message{% endif %}
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if parent_msg %}
+                <div class="alert alert-secondary small mb-4">
+                    <strong>Replying to:</strong> {{ parent_msg.subject }}<br>
+                    <span class="text-muted">From {{ parent_msg.sender.get_full_name|default:parent_msg.sender.username }}</span>
+                </div>
+                {% endif %}
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label fw-medium small">To</label>
+                        {{ form.recipient }}
+                        {% if form.recipient.errors %}<div class="text-danger small">{{ form.recipient.errors }}</div>{% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-medium small">Subject</label>
+                        {{ form.subject }}
+                        {% if form.subject.errors %}<div class="text-danger small">{{ form.subject.errors }}</div>{% endif %}
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-medium small">Message</label>
+                        {{ form.body }}
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" name="action" value="send" class="btn btn-primary">
+                            <i class="bi bi-send me-2"></i>Send
+                        </button>
+                        <button type="submit" name="action" value="draft" class="btn btn-outline-secondary">
+                            <i class="bi bi-file-text me-2"></i>Save Draft
+                        </button>
+                        <a href="{% url 'inbox' %}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

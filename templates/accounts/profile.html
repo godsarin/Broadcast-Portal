@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% block title %}My Profile{% endblock %}
+{% block page_title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="card text-center">
+            <div class="card-body py-5">
+                <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle text-white fw-bold"
+                     style="width:80px;height:80px;font-size:1.8rem;background:linear-gradient(135deg,#8E32E9,#FF4D6B);">
+                    {{ profile.avatar_initials|default:user.username|slice:":2"|upper }}
+                </div>
+                <h5 class="fw-bold">{{ user.get_full_name|default:user.username }}</h5>
+                <p class="text-muted">{{ profile.job_title|default:"Team Member" }}</p>
+                <p class="text-muted small">{{ profile.department|default:"" }}</p>
+                <hr>
+                <div class="text-start small">
+                    <div class="mb-2"><i class="bi bi-person me-2 text-muted"></i>{{ user.username }}</div>
+                    <div class="mb-2"><i class="bi bi-envelope me-2 text-muted"></i>{{ user.email|default:"No email set" }}</div>
+                    {% if profile.phone %}
+                    <div class="mb-2"><i class="bi bi-telephone me-2 text-muted"></i>{{ profile.phone }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="card mt-3">
+            <div class="card-body">
+                <h6 class="fw-semibold mb-3">Quick Actions</h6>
+                <a href="{% url 'change_password' %}" class="btn btn-outline-secondary w-100 mb-2">
+                    <i class="bi bi-key me-2"></i>Change Password
+                </a>
+                <a href="{% url 'inbox' %}" class="btn btn-outline-primary w-100">
+                    <i class="bi bi-inbox me-2"></i>Go to Inbox
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-semibold">Edit Profile</h6>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-medium small">First Name</label>
+                            {{ form.first_name }}
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-medium small">Last Name</label>
+                            {{ form.last_name }}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-medium small">Email</label>
+                        {{ form.email }}
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-medium small">Job Title</label>
+                            {{ form.job_title }}
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-medium small">Department</label>
+                            {{ form.department }}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-medium small">Phone</label>
+                        {{ form.phone }}
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-medium small">Bio</label>
+                        {{ form.bio }}
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg me-2"></i>Save Changes
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

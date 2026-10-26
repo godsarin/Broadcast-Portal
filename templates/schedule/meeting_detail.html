@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% block title %}{{ meeting.title }}{% endblock %}
+{% block page_title %}Schedule{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h4 class="fw-bold mb-1">{{ meeting.title }}</h4>
+        <span class="badge bg-{% if meeting.status == 'scheduled' %}success{% elif meeting.status == 'cancelled' %}danger{% else %}secondary{% endif %}">
+            {{ meeting.get_status_display }}
+        </span>
+    </div>
+    <div class="d-flex gap-2">
+        {% if is_organiser %}
+    {% if meeting.status == 'scheduled' %}
+    <a href="{% url 'meeting_edit' meeting.pk %}" class="btn btn-primary btn-sm">
+        <i class="bi bi-pencil me-1"></i>Edit
+    </a>
+    <a href="{% url 'meeting_cancel' meeting.pk %}" class="btn btn-outline-danger btn-sm">
+        <i class="bi bi-x-circle me-1"></i>Cancel
+    </a>
+    {% endif %}
+    {% if meeting.status == 'cancelled' %}
+    <button type="button"
+        class="btn btn-danger btn-sm"
+        data-bs-toggle="modal"
+        data-bs-target="#deleteMeetingModal">
+        <i class="bi bi-trash me-1"></i>Delete
+    </button>
+    {% endif %}
+{% endif %}
+        <a href="{% url 'schedule_home' %}" class="btn btn-outline-secondary btn-sm">Back</a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="text-muted small mb-1"><i class="bi bi-calendar3 me-1"></i>Date & Time</div>
+                        <div class="fw-semibold">{{ meeting.date_time|date:"D, d F Y" }}</div>
+                        <div>{{ meeting.date_time|date:"H:i" }} ({{ meeting.duration_minutes }} min)</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted small mb-1"><i class="bi bi-camera-video me-1"></i>Platform</div>
+                        <div class="fw-semibold">{{ meeting.get_platform_display }}</div>
+                        {% if meeting.meeting_link %}
+                        <a href="{{ meeting.meeting_link }}" target="_blank" class="btn btn-sm btn-success mt-1">
+                            <i class="bi bi-play-circle me-1"></i>Join Meeting
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% if meeting.location %}
+                    <div class="col-6">
+                        <div class="text-muted small mb-1"><i class="bi bi-geo-alt me-1"></i>Location</div>
+                        <div>{{ meeting.location }}</div>
+                    </div>
+                    {% endif %}
+                    {% if meeting.team %}
+                    <div class="col-6">
+                        <div class="text-muted small mb-1"><i class="bi bi-people me-1"></i>Team</div>
+                        <a href="{% url 'team_detail' meeting.team.pk %}" class="text-decoration-none fw-medium">{{ meeting.team.name }}</a>
+                    </div>
+                    {% endif %}
+                </div>
+                {% if meeting.description %}
+                <hr>
+                <div class="text-muted small mb-1">Description</div>
+                <p>{{ meeting.description }}</p>
+                {% endif %}
+                {% if meeting.message %}
+                <hr>
+                <div class="text-muted small mb-1">Agenda</div>
+                <div style="white-space:pre-wrap;">{{ meeting.message }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-semibold"><i class="bi bi-people me-2"></i>Attendees ({{ meeting.attendee_count }})</h6>
+            </div>
+            <div class="list-group list-group-flush">
+                <div class="list-group-item px-4 py-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="avatar" style="width:28px;height:28px;font-size:0.7rem;">{{ meeting.organiser.first_name|slice:":1" }}{{ meeting.organiser.last_name|slice:":1" }}</div>
+                        <div>
+                            <div class="small fw-medium">{{ meeting.organiser.get_full_name|default:meeting.organiser.username }}</div>
+                            <div class="badge bg-primary-subtle text-primary" style="font-size:0.65rem;">Organiser</div>
+                        </div>
+                    </div>
+                </div>
+                {% for attendee in meeting.attendees.all %}
+                {% if attendee != meeting.organiser %}
+                <div class="list-group-item px-4 py-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="avatar" style="width:28px;height:28px;font-size:0.7rem;">{{ attendee.first_name|slice:":1" }}{{ attendee.last_name|slice:":1" }}</div>
+                        <div class="small">{{ attendee.get_full_name|default:attendee.username }}</div>
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% if is_organiser and meeting.status == 'cancelled' %}
+<!-- Delete Meeting Modal -->
+<div class="modal fade" id="deleteMeetingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-trash text-danger me-2"></i>Delete Meeting
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body py-4">
+                <p class="mb-1">Are you sure you want to permanently delete this meeting?</p>
+                <p class="text-muted small mb-0">Subject: <strong>{{ meeting.title }}</strong></p>
+                <p class="text-muted small mt-2 mb-0">
+                    <i class="bi bi-info-circle me-1"></i>This action cannot be undone.
+                </p>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-lg me-1"></i>Keep It
+                </button>
+                <form method="post" action="{% url 'meeting_delete' meeting.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash me-1"></i>Yes, Delete
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

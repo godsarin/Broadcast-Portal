@@ -1,0 +1,279 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard - Broadcast Portal{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Grid view team cards */
+    .team-grid-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        cursor: pointer;
+        height: 100%;
+    }
+    .team-grid-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+    }
+
+    /* Toggle buttons */
+    .view-toggle .btn {
+        padding: 4px 10px;
+    }
+    .view-toggle .btn.active {
+        background: #0d6efd;
+        color: white;
+        border-color: #0d6efd;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Stats Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="rounded-3 p-3" style="background:#e7f0ff;">
+                    <i class="bi bi-people-fill text-primary fs-4"></i>
+                </div>
+                <div>
+                    <div class="fs-2 fw-bold">{{ team_count }}</div>
+                    <div class="text-muted small">Active Teams</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="rounded-3 p-3" style="background:#e8f5e9;">
+                    <i class="bi bi-building-fill text-success fs-4"></i>
+                </div>
+                <div>
+                    <div class="fs-2 fw-bold">{{ dept_count }}</div>
+                    <div class="text-muted small">Departments</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="rounded-3 p-3" style="background:#fff3e0;">
+                    <i class="bi bi-envelope-fill text-warning fs-4"></i>
+                </div>
+                <div>
+                    <div class="fs-2 fw-bold">{{ unread_messages }}</div>
+                    <div class="text-muted small">Unread Messages</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="rounded-3 p-3" style="background:#fce4ec;">
+                    <i class="bi bi-calendar-check-fill text-danger fs-4"></i>
+                </div>
+                <div>
+                    <div class="fs-2 fw-bold">{{ upcoming_meetings|length }}</div>
+                    <div class="text-muted small">Upcoming Meetings</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Teams with Grid/List Toggle -->
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                <h6 class="mb-0 fw-semibold">
+                    <i class="bi bi-people me-2 text-primary"></i>Recent Teams
+                </h6>
+                <div class="d-flex align-items-center gap-2">
+                    <!-- Grid/List Toggle Buttons -->
+                    <div class="view-toggle btn-group" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-secondary active" id="listViewBtn" onclick="switchView('list')" title="List View">
+                            <i class="bi bi-list-ul"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="gridViewBtn" onclick="switchView('grid')" title="Grid View">
+                            <i class="bi bi-grid"></i>
+                        </button>
+                    </div>
+                    <a href="{% url 'team_list' %}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+            </div>
+            <div class="card-body p-0" id="teamsContainer">
+
+                <!-- LIST VIEW -->
+                <div id="listView">
+                    {% if recent_teams %}
+                    <div class="list-group list-group-flush">
+                        {% for team in recent_teams %}
+                        <a href="{% url 'team_detail' team.pk %}" class="list-group-item list-group-item-action px-4 py-3">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="fw-medium">{{ team.name }}</div>
+                                    <div class="text-muted small">
+                                        {{ team.department.name|default:"No Department" }} &bull;
+                                        {{ team.member_count }} members
+                                    </div>
+                                    <div class="text-muted small">{{ team.description|truncatechars:60 }}</div>
+                                </div>
+                                <span class="badge status-badge-{{ team.status }} rounded-pill">
+                                    {{ team.get_status_display }}
+                                </span>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-people fs-1 d-block mb-2"></i>No teams yet
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- GRID VIEW -->
+                <div id="gridView" style="display:none;" class="p-3">
+                    {% if recent_teams %}
+                    <div class="row g-3">
+                        {% for team in recent_teams %}
+                        <div class="col-sm-6">
+                            <a href="{% url 'team_detail' team.pk %}" class="text-decoration-none">
+                                <div class="card team-grid-card border">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold"
+                                                style="width:40px;height:40px;min-width:40px;background:linear-gradient(135deg,#8E32E9,#FF4D6B);font-size:0.9rem;">
+                                                {{ team.name|slice:":2"|upper }}
+                                            </div>
+                                            <span class="badge status-badge-{{ team.status }} rounded-pill">
+                                                {{ team.get_status_display }}
+                                            </span>
+                                        </div>
+                                        <div class="fw-semibold text-dark mt-2">{{ team.name }}</div>
+                                        <div class="text-muted small mb-2">
+                                            {{ team.department.name|default:"No Department" }}
+                                        </div>
+                                        <div class="text-muted small" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+                                            {{ team.description|default:"No description." }}
+                                        </div>
+                                        <div class="mt-2 small text-muted">
+                                            <i class="bi bi-people me-1"></i>{{ team.member_count }} members
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-people fs-1 d-block mb-2"></i>No teams yet
+                    </div>
+                    {% endif %}
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Upcoming Meetings + Activity -->
+    <div class="col-lg-5">
+        <div class="card mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                <h6 class="mb-0 fw-semibold">
+                    <i class="bi bi-calendar3 me-2 text-success"></i>Upcoming Meetings
+                </h6>
+                <a href="{% url 'schedule_home' %}" class="btn btn-sm btn-outline-success">View All</a>
+            </div>
+            <div class="card-body p-0">
+                {% if upcoming_meetings %}
+                <div class="list-group list-group-flush">
+                    {% for meeting in upcoming_meetings %}
+                    <a href="{% url 'meeting_detail' meeting.pk %}" class="list-group-item list-group-item-action px-4 py-3">
+                        <div class="fw-medium small">{{ meeting.title }}</div>
+                        <div class="text-muted" style="font-size:0.78rem;">
+                            <i class="bi bi-clock me-1"></i>{{ meeting.date_time|date:"D, d M H:i" }}
+                            <span class="ms-2"><i class="bi bi-camera-video me-1"></i>{{ meeting.get_platform_display }}</span>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted small">
+                    <i class="bi bi-calendar-x fs-2 d-block mb-1"></i>No upcoming meetings
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="card">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-semibold">
+                    <i class="bi bi-activity me-2 text-danger"></i>Recent Activity
+                </h6>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_audit %}
+                <div class="list-group list-group-flush">
+                    {% for log in recent_audit|slice:":6" %}
+                    <div class="list-group-item px-4 py-2">
+                        <div class="d-flex gap-2 align-items-start">
+                            <span class="badge bg-secondary mt-1 rounded-pill" style="font-size:0.65rem;">{{ log.action }}</span>
+                            <div>
+                                <div style="font-size:0.8rem;">{{ log.description }}</div>
+                                <div class="text-muted" style="font-size:0.72rem;">{{ log.timestamp|timesince }} ago</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted small">No activity yet</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Switch between list and grid view
+    function switchView(view) {
+        const listView = document.getElementById('listView');
+        const gridView = document.getElementById('gridView');
+        const listBtn = document.getElementById('listViewBtn');
+        const gridBtn = document.getElementById('gridViewBtn');
+
+        if (view === 'grid') {
+            listView.style.display = 'none';
+            gridView.style.display = 'block';
+            gridBtn.classList.add('active');
+            listBtn.classList.remove('active');
+        } else {
+            gridView.style.display = 'none';
+            listView.style.display = 'block';
+            listBtn.classList.add('active');
+            gridBtn.classList.remove('active');
+        }
+
+        // Save preference in localStorage so it remembers on next visit
+        localStorage.setItem('dashboardView', view);
+    }
+
+    // On page load, restore saved preference
+    document.addEventListener('DOMContentLoaded', function () {
+        const savedView = localStorage.getItem('dashboardView');
+        if (savedView === 'grid') {
+            switchView('grid');
+        }
+    });
+</script>
+{% endblock %}

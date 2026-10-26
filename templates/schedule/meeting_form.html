@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block page_title %}Schedule{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-semibold"><i class="bi bi-calendar-plus me-2"></i>{{ title }}</h6>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label fw-medium small">Meeting Title *</label>
+                        {{ form.title }}
+                        {% if form.title.errors %}<div class="text-danger small">{{ form.title.errors }}</div>{% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-medium small">Description</label>
+                        {{ form.description }}
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-medium small">Date & Time *</label>
+                            {{ form.date_time }}
+                            {% if form.date_time.errors %}<div class="text-danger small">{{ form.date_time.errors }}</div>{% endif %}
+                        </div>
+                        <div class="col-3 mb-3">
+                            <label class="form-label fw-medium small">Duration (min)</label>
+                            {{ form.duration_minutes }}
+                        </div>
+                        {% if meeting %}
+                        <div class="col-3 mb-3">
+                            <label class="form-label fw-medium small">Status</label>
+                            {{ form.status }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-medium small">Platform</label>
+                            {{ form.platform }}
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-medium small">Meeting Link</label>
+                            {{ form.meeting_link }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-medium small">Related Team</label>
+                            {{ form.team }}
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-medium small">Location (if in-person)</label>
+                            {{ form.location }}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-medium small">Attendees</label>
+                        {{ form.attendees }}
+                        <div class="text-muted small mt-1">Hold Ctrl/Cmd to select multiple</div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-medium small">Agenda / Notes</label>
+                        {{ form.message }}
+                    </div>
+
+                    {% if form.errors %}
+                    <div class="alert alert-danger small mb-3">
+                        Please fix the following errors:
+                        {% for field in form %}
+                            {% for error in field.errors %}
+                                <div>{{ field.label }}: {{ error }}</div>
+                            {% endfor %}
+                        {% endfor %}
+                        {% for error in form.non_field_errors %}
+                            <div>{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-calendar-check me-2"></i>
+                            {% if meeting %}Update{% else %}Schedule{% endif %} Meeting
+                        </button>
+                        <a href="{% url 'schedule_home' %}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

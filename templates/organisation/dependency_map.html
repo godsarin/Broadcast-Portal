@@ -1,0 +1,443 @@
+{% extends 'base.html' %}
+{% block title %}Dependency Map{% endblock %}
+{% block page_title %}Dependency Map{% endblock %}
+
+{% block extra_css %}
+<style>
+    .map-wrapper {
+        background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+        border-radius: 16px;
+        padding: 20px;
+        position: relative;
+        overflow: hidden;
+        min-height: 520px;
+    }
+
+    .map-wrapper::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+        background-size: 30px 30px;
+        pointer-events: none;
+    }
+
+    #dep-svg {
+        width: 100%;
+        overflow: visible;
+        display: block;
+    }
+
+    .node-group {
+        cursor: pointer;
+    }
+
+    .node-rect {
+        rx: 12;
+        ry: 12;
+        filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4));
+        transition: all 0.3s;
+    }
+
+    .node-group:hover .node-rect {
+        filter: drop-shadow(0 6px 20px rgba(99,179,237,0.6));
+    }
+
+    .node-title {
+        font-family: 'Segoe UI', sans-serif;
+        font-weight: 700;
+        font-size: 13px;
+        fill: white;
+    }
+
+    .node-dept {
+        font-family: 'Segoe UI', sans-serif;
+        font-size: 10px;
+        fill: rgba(255,255,255,0.6);
+    }
+
+    .edge-path {
+        fill: none;
+        stroke-width: 2;
+        stroke-dasharray: 6 3;
+        opacity: 0;
+    }
+
+    .edge-path.animated {
+        animation: drawEdge 0.8s ease forwards;
+    }
+
+    @keyframes drawEdge {
+        from { opacity: 0; stroke-dashoffset: 200; }
+        to { opacity: 0.8; stroke-dashoffset: 0; }
+    }
+
+    .node-group {
+        opacity: 0;
+        transform: scale(0.5);
+    }
+
+    .node-group.visible {
+        animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    @keyframes popIn {
+        from {
+            opacity: 0;
+            transform: scale(0.3) translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+
+    /* Legend */
+    .legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.78rem;
+        color: #6c757d;
+        margin-right: 16px;
+    }
+
+    .legend-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+    }
+
+    /* Table */
+    .dep-table th {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    /* Tooltip */
+    #tooltip {
+        position: fixed;
+        background: rgba(15,12,41,0.95);
+        color: white;
+        padding: 8px 14px;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        pointer-events: none;
+        z-index: 9999;
+        display: none;
+        border: 1px solid rgba(255,255,255,0.1);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+
+    .pulse-ring {
+        animation: pulse 2s infinite;
+        transform-origin: center;
+    }
+
+    @keyframes pulse {
+        0% { transform: scale(1); opacity: 0.6; }
+        50% { transform: scale(1.08); opacity: 0.3; }
+        100% { transform: scale(1); opacity: 0.6; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-1">Dependency Map</h4>
+        <p class="text-muted small mb-0">Upstream and downstream team dependencies</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        <div>
+            <span class="legend-item">
+                <span class="legend-dot" style="background:#63b3ed;"></span> Has upstream
+            </span>
+            <span class="legend-item">
+                <span class="legend-dot" style="background:#68d391;"></span> No dependencies
+            </span>
+        </div>
+        <a href="{% url 'organisation_overview' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Back to Org
+        </a>
+    </div>
+</div>
+
+<!-- Animated Map -->
+<div class="card mb-4">
+    <div class="card-body p-3">
+        <div class="map-wrapper">
+            <svg id="dep-svg" style="min-height:480px;"></svg>
+        </div>
+    </div>
+</div>
+
+<!-- Tooltip -->
+<div id="tooltip"></div>
+
+<!-- Table -->
+<div class="card">
+    <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold">
+            <i class="bi bi-table me-2 text-primary"></i>Teams & Dependencies
+        </h6>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 dep-table">
+            <thead class="table-light">
+                <tr>
+                    <th>Team</th>
+                    <th>Department</th>
+                    <th>Upstream (depends on)</th>
+                    <th>Downstream (depended by)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for team in teams %}
+                <tr>
+                    <td>
+                        <a href="{% url 'team_detail' team.pk %}" class="fw-medium text-decoration-none">
+                            {{ team.name }}
+                        </a>
+                    </td>
+                    <td class="text-muted small">{{ team.department.name|default:"—" }}</td>
+                    <td>
+                        {% for t in team.upstream_dependencies.all %}
+                        {% if t.status == 'active' %}
+                       <a href="{% url 'team_detail' t.pk %}" class="badge bg-primary-subtle text-primary text-decoration-none me-1">{{ t.name }}</a>
+                       {% endif %}
+                       {% empty %}<span class="text-muted small">—</span>{% endfor %}
+                    </td>
+                    <td>
+                        {% for t in team.downstream_dependents.all %}
+                        {% if t.status == 'active' %}
+                        <a href="{% url 'team_detail' t.pk %}" class="badge bg-success-subtle text-success text-decoration-none me-1">{{ t.name }}</a>
+                        {% endif %}
+                        {% empty %}<span class="text-muted small">—</span>{% endfor %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-4">No teams found</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const nodesData = {{ nodes|safe }};
+const edgesData = {{ edges|safe }};
+const svg = document.getElementById('dep-svg');
+const tooltip = document.getElementById('tooltip');
+
+if (nodesData.length === 0) {
+    svg.parentElement.innerHTML = '<div class="text-center text-white py-5"><i class="bi bi-diagram-2" style="font-size:3rem;opacity:0.3;"></i><p class="mt-3 opacity-50">No teams to display</p></div>';
+} else {
+    const nodeW = 170;
+    const nodeH = 60;
+    const paddingX = 60;
+    const paddingY = 80;
+
+    // Figure out which nodes have incoming edges (have upstream)
+    const hasUpstream = new Set(edgesData.map(e => e.to));
+
+    // Layout — arrange in rows based on dependencies
+    // Nodes with no upstream go in row 0, others in row 1+
+    const rows = [];
+    const assigned = {};
+
+    // Row 0: nodes with no incoming edges
+    const row0 = nodesData.filter(n => !hasUpstream.has(n.id));
+    const row1 = nodesData.filter(n => hasUpstream.has(n.id));
+    if (row0.length) rows.push(row0);
+    if (row1.length) rows.push(row1);
+    if (!rows.length) rows.push(nodesData);
+
+    // Calculate SVG dimensions
+    const maxPerRow = Math.max(...rows.map(r => r.length));
+    const svgW = Math.max(600, maxPerRow * (nodeW + paddingX) + paddingX);
+    const svgH = rows.length * (nodeH + paddingY) + paddingY + 40;
+
+    svg.setAttribute('viewBox', `0 0 ${svgW} ${svgH}`);
+    svg.style.minHeight = `${svgH}px`;
+
+    // Defs for gradient, glow, arrow
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    defs.innerHTML = `
+        <marker id="arrowBlue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#63b3ed" opacity="0.9"/>
+        </marker>
+        <linearGradient id="nodeGradBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#2b6cb0;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#1a365d;stop-opacity:1" />
+        </linearGradient>
+        <linearGradient id="nodeGradGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#276749;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#1c4532;stop-opacity:1" />
+        </linearGradient>
+        <filter id="glow">
+            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+            <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+        </filter>
+        <filter id="glowBlue">
+            <feColorMatrix type="matrix" values="0 0 0 0 0.39  0 0 0 0 0.7  0 0 0 0 0.93  0 0 0 1 0"/>
+            <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+            <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+        </filter>
+    `;
+    svg.appendChild(defs);
+
+    // Store positions
+    const positions = {};
+
+    // Draw nodes row by row
+    rows.forEach((row, rowIndex) => {
+        const rowW = row.length * (nodeW + paddingX) - paddingX;
+        const startX = (svgW - rowW) / 2;
+        const y = paddingY + rowIndex * (nodeH + paddingY);
+
+        row.forEach((node, colIndex) => {
+            const x = startX + colIndex * (nodeW + paddingX);
+            const cx = x + nodeW / 2;
+            const cy = y + nodeH / 2;
+            positions[node.id] = { x, y, cx, cy };
+
+            const isDependent = hasUpstream.has(node.id);
+            const gradId = isDependent ? 'nodeGradBlue' : 'nodeGradGreen';
+            const borderColor = isDependent ? '#63b3ed' : '#68d391';
+
+            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            g.setAttribute('class', 'node-group');
+            g.setAttribute('data-id', node.id);
+            g.setAttribute('data-label', node.label);
+            g.setAttribute('data-dept', node.dept);
+            g.style.transformOrigin = `${cx}px ${cy}px`;
+
+            // Pulse ring
+            const pulse = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            pulse.setAttribute('x', x - 4);
+            pulse.setAttribute('y', y - 4);
+            pulse.setAttribute('width', nodeW + 8);
+            pulse.setAttribute('height', nodeH + 8);
+            pulse.setAttribute('rx', 16);
+            pulse.setAttribute('fill', 'none');
+            pulse.setAttribute('stroke', borderColor);
+            pulse.setAttribute('stroke-width', '1.5');
+            pulse.setAttribute('opacity', '0.4');
+            pulse.setAttribute('class', 'pulse-ring');
+            g.appendChild(pulse);
+
+            // Background rect
+            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            rect.setAttribute('x', x);
+            rect.setAttribute('y', y);
+            rect.setAttribute('width', nodeW);
+            rect.setAttribute('height', nodeH);
+            rect.setAttribute('rx', 12);
+            rect.setAttribute('fill', `url(#${gradId})`);
+            rect.setAttribute('stroke', borderColor);
+            rect.setAttribute('stroke-width', '1.5');
+            rect.setAttribute('class', 'node-rect');
+            g.appendChild(rect);
+
+            // Team name
+            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            text.setAttribute('x', cx);
+            text.setAttribute('y', y + 24);
+            text.setAttribute('text-anchor', 'middle');
+            text.setAttribute('class', 'node-title');
+            text.textContent = node.label.length > 18 ? node.label.substring(0, 18) + '…' : node.label;
+            g.appendChild(text);
+
+            // Department name
+            const dept = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            dept.setAttribute('x', cx);
+            dept.setAttribute('y', y + 42);
+            dept.setAttribute('text-anchor', 'middle');
+            dept.setAttribute('class', 'node-dept');
+            dept.textContent = node.dept;
+            g.appendChild(dept);
+
+            // Click to go to team
+            g.style.cursor = 'pointer';
+            g.addEventListener('click', () => {
+                window.location.href = `/teams/${node.id}/`;
+            });
+
+            // Tooltip on hover
+            g.addEventListener('mouseenter', (e) => {
+                tooltip.style.display = 'block';
+                tooltip.innerHTML = `<strong>${node.label}</strong><br><span style="opacity:0.7;">${node.dept}</span><br><span style="font-size:0.7rem;opacity:0.5;">Click to view team</span>`;
+            });
+            g.addEventListener('mousemove', (e) => {
+                tooltip.style.left = (e.clientX + 14) + 'px';
+                tooltip.style.top = (e.clientY - 10) + 'px';
+            });
+            g.addEventListener('mouseleave', () => {
+                tooltip.style.display = 'none';
+            });
+
+            svg.appendChild(g);
+        });
+    });
+
+    // Draw edges first (behind nodes)
+    const edgeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    edgesData.forEach((edge, i) => {
+        const from = positions[edge.from];
+        const to = positions[edge.to];
+        if (!from || !to) return;
+
+        const x1 = from.cx;
+        const y1 = from.y + nodeH;
+        const x2 = to.cx;
+        const y2 = to.y;
+        const midY = (y1 + y2) / 2;
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const d = `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`;
+        path.setAttribute('d', d);
+        path.setAttribute('stroke', '#63b3ed');
+        path.setAttribute('stroke-width', '2');
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke-dasharray', '6 3');
+        path.setAttribute('marker-end', 'url(#arrowBlue)');
+        path.setAttribute('class', 'edge-path');
+        path.style.animationDelay = `${0.3 + i * 0.15}s`;
+        edgeGroup.appendChild(path);
+    });
+    svg.insertBefore(edgeGroup, svg.firstChild);
+
+    // Animate nodes appearing one by one
+    const nodeGroups = svg.querySelectorAll('.node-group');
+    nodeGroups.forEach((g, i) => {
+        setTimeout(() => {
+            g.classList.add('visible');
+        }, i * 120);
+    });
+
+    // Animate edges after nodes
+    const edgePaths = svg.querySelectorAll('.edge-path');
+    setTimeout(() => {
+        edgePaths.forEach((p, i) => {
+            setTimeout(() => {
+                p.classList.add('animated');
+            }, i * 150);
+        });
+    }, nodeGroups.length * 120 + 200);
+}
+</script>
+{% endblock %}
